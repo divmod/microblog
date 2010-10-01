@@ -1,0 +1,188 @@
+/*
+ * This file shamelessly stolen and modified by Peter Dinda from 
+ * the original, which is:
+ *
+ *
+ * Fabian E. Bustamante
+ * Northwestern Systems Research Group
+ * Department of Computer Science	
+ * Northwestern University
+ *
+ * (C) Copyright 2003, Northwestern University, all rights reserved.
+ *
+ */
+
+body { background: #f0f0f0; 
+       color: black; 
+       font-family: Times, serif
+       margin-top: 2%; 
+       margin-bottom: 2%; 
+       margin-left: 2%; 
+       margin-right: 2%;
+       font-size: normal
+      }
+
+p { margin-top: 15px; 
+    margin-bottom: 15px; 
+    margin-left: 0px; 
+    margin-right: 15px;
+   }
+
+table { width: 100%;
+	border: black solid 2px;
+	padding: 0px;
+      }
+
+td { border: black solid 1px; }
+
+tr { border: black solid 1px; }
+
+ul { margin-left: 15px; 
+     margin-right: 15px;
+     margin-top: -5px; 
+     margin-bottom: 0px; 
+     padding-left:15px;
+     list-style-type: disc;
+   }  
+
+li { margin-top: 0px;
+     margin-bottom: 5px;
+   }
+
+/* hr {} */
+
+address { font-family: Helvetica, "x-small Verdana", Arial, sans-serif;
+          font-style: normal;
+          font-size: small;
+          margin-top: -10px;
+          margin-left: 25px; 	
+          foreground-color: #333333; 
+          background: transparent; 
+	  color: black;}
+
+div.ribbonwide { font-size: xx-small;
+                 font-weight: bold;
+                 text-align: center;
+                 width: 100%;	
+               }	
+
+div.ribbon { margin-left: auto; 
+             margin-right: auto;
+           }
+
+div.main {
+        font-size: small;
+        }
+
+div.copyright {
+	font-family: Helvetica, "small Verdana", Arial, sans-serif; 
+       	font-size: xx-small;
+	text-align: left;
+	color: #000000;
+	background: transparent;
+	padding-top: 20px;
+	}
+
+div.infotitle {
+	font-family: arial, sans-serif; 
+	/* color: rgb(84,94,180); */ 
+	font-size: small; 
+ 	font-weight:bold; 
+	line-height:140%; 
+	padding:2px; 
+	margin-top:10px; 
+      	text-transform:uppercase; 
+	letter-spacing: .2em; 
+	}
+
+a:link, a:active {
+        margin: 0 1px;
+        padding: 0 1px;
+        color: blue; 
+        background: transparent;
+        text-decoration: none;
+	border: #FFFFFF solid 0px;
+        }       
+
+a:visited {
+        margin: 0 1px;
+        padding: 0 1px;
+        color: #a0a0ff;
+        background: transparent;
+        text-decoration: none;
+	border: #FFFFFF solid 0px;
+        }       
+
+a:hover {
+        color: #333366;
+        padding: 0 1px;
+        background: yellow;
+        } 
+
+h1, h2, h3, h4, h5, h6 {
+	font-family: Helvitica, sans-serif;
+     	background: transparent;
+	color: black;
+	}
+
+small {
+ font-size: smaller;
+ }
+big {
+ font-size: larger;
+ }
+h1 {
+ font-size: xx-large;
+ }
+h2 {
+ font-size: x-large;
+ }
+h3 {
+ font-size: large;
+ }
+h4 {
+ font-size: medium;
+ }
+h5 {
+ font-size: small;
+ }
+h6 {
+ font-size: x-small;
+ }
+font[size=1] {
+ font-size: xx-small;
+ }
+font[size=2] {
+ font-size: small;
+ }
+font[size=3] {
+ font-size: medium;
+ }
+font[size=4] {
+ font-size: large;
+ }
+font[size=5] {
+ font-size: x-large;
+ }
+font[size=6] {
+ font-size: xx-large;
+ }
+font[size=7] {
+ font-size: 300%;
+ }
+font[size=-1] {
+ font-size: smaller;
+ }
+font[size=+1] {
+ font-size: larger;
+ }
+font[size=-2] {
+ font-size: 60%;
+ }
+font[size=+2] {
+ font-size: 150%;
+ }
+font[size=+4] {
+ font-size: 300%;
+ }
+
