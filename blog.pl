@@ -758,7 +758,9 @@ sub MessageQuery {
 		else {
 		eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where author=?",undef,$by);};
 		}
+#
 #	  print "Row back:".join(",",@msgs);
+#
 	}
 	elsif ($from ne "") {
 		if ($to ne "") {
