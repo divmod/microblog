@@ -746,17 +746,17 @@ sub MessageQuery {
 	if ($by ne "") {
 		if ($from ne "") {
 			if ($to ne "") {
-				eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and author=?",undef,$timefrom,$timeto,$by);};
+				eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(author,?,'i')",undef,$timefrom,$timeto,$by);};
 			}
 			else {
-			eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time>=? and author=?",undef,$timefrom,$by);};
+			eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time>=? and regexp_like(author,?,'i')",undef,$timefrom,$by);};
 			}
 		}
 		elsif ($to ne "") {
-			eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time<=? and author=?",undef,$timeto,$by);};
+			eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time<=? and regexp_like(author,?,'i')",undef,$timeto,$by);};
 		}
 		else {
-		eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where author=?",undef,$by);};
+		eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(author,?,'i')",undef,$by);};
 		}
 #
 #	  print "Row back:".join(",",@msgs);
