@@ -1,0 +1,146 @@
+Welcome to Microblog
+
+(c) 2003-2007 Peter A. Dinda, pdinda@cs.northwestern.edu
+
+This is a tiny web log implementation based on Perl CGI, DBI, and an
+Oracle database.  It is instructional code to support CS 339,
+Introduction to Databases in the CS Department at Northwestern
+University.
+
+Requirements
+------------
+
+You must have the following software running:
+
+   Perl 5.8  (expected to be installed in /usr/local/bin)
+     CGI
+     DBI
+     DBI::Oracle
+     Time::ParseDate
+   Oracle    (tested with Oracle 9i Enterprise 9.2)
+   Apache    (or other web server)
+
+We assume the following:
+   
+   machine     Name of your machine
+   you         Linux username
+   yourgroup   Your Linux group
+   youora      Your Oracle username
+   orapasswd   Your Oracle password
+
+Your oracle account must have permissions to allow the creation of
+tables and sequences, inserts, deletes, updates, and selects.  Here 
+is a minimal set of sysdba commands to do this if it isn't already the
+case:
+
+$ sqlplus /nolog
+SQL> connect / as sysdba;
+SQL> create user youora identified by orapasswd default tablespace users;
+SQL> grant connect, resource to youora;
+SQL> quit;
+
+We assume that ~you/public_html is served by Apache as 
+http://machine/~you.  We also assume that ~you/public_html and
+its children are CGI-enabled and support CGI scripts with the 
+extension ".pl".  
+
+Your web browser must support frames and accept cookies.
+
+
+Contents
+--------
+
+   README
+   blog.sql        SQL code for creating the blog schema
+   drop_blog.sql   SQL code for deleting the blog schema
+   blog.pl         Perl CGI code that implements the blog
+                   It produces output for the right frame
+   blog-handout.pl Copy of blog.pl ("what we handed out")
+   blog.html       HTML code that creates the frames
+   actions.html    HTML code for the left frame
+   blog.css        CSS style file for rendering pages
+
+
+Installing Microblog
+--------------------
+
+cd public_html
+tar xvfz microblog.tgz
+cd microblog
+sqlplus youora/orapasswd @blog.sql
+
+Now edit blog.pl to reflect your environment.  
+
+These lines reflect where oracle is installed:
+
+$ENV{ORACLE_HOME}="/opt/oracle/product/9.2.0";
+$ENV{ORACLE_BASE}="/opt/oracle/product/9.2.0";
+$ENV{ORACLE_SID}="URGIS";
+
+These lines reflect your oracle user and password:
+
+my $dbuser="cs339";
+my $dbpasswd="cs339";
+
+
+Using Microblog
+---------------
+
+Point a web browser at
+
+http://machine/~you/microblog/blog.html
+
+You should see two side-by-side frames.  The left frame
+shows the high level actions that are possible
+(read/write/users/login).  The right frame should be showing a login
+screen.  Two users are available by default:  root (with password
+rootroot), who can do anything, and none (with password nonenone), who
+can do nothing.
+
+Understanding Microblog
+-----------------------
+
+No matter what the assignment is, you first want to understand how
+Microblog works.  Both blog.sql and blog.pl are extensively commented
+to help you do that.  They also generate tons of debugging output to
+the browser by default.  This is controlled by the following lines in
+the blog.pl script:
+
+my $show_params=1;
+my $show_cookies=1;
+my $show_sqlinput=1;
+my $show_sqloutput=1;
+
+When you load http://machine/~you/microblog/blog.html, you get an HTML
+frameset that consists of two frames.  The left frame loads
+actions.html, while the right frame load blog.pl with "query" as the
+requested action.  blog.pl expects to get a cookie containing the
+username and password.  If that cookie doesn't exist, then it asks you
+to log in and gives you an appropriate cookie.  A cookie is just a way
+in which a script or other can store some state in your browser.  The
+script then gives (or doesn't give) you access to different actions
+based on your cookie.  
+
+NOTE: Passing a cookie with an unencrypted username/password
+combination is NOT a secure way of handling sessions.  First, it is
+sent in cleartext and so could be intercepted.  Second, it is stored
+in the browser or the browser cookie file in cleartext and so could be
+vulnerable to attack there.  
+
+
+Extending Microblog
+-------------------
+
+The first project in CS 339 involves extending Microblog in various
+ways.  The best way to do this is generally the following:
+
+0. UNDERSTAND HOW IT WORKS FIRST
+1. Write the SQL needed for the task
+2. Verify that instances of the SQL work using sqlplus
+3. Embed the SQL into a Perl function (look at UserAdd for an example)
+4. Finally, write the Perl logic to call the function at the
+   right time.
+
+
+
+

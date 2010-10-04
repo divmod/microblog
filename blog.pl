@@ -59,9 +59,10 @@ $ENV{ORACLE_SID}="CS339";
 #
 # You need to override these for access to your database
 #
-my $dbuser="jhb348";
-my $dbpasswd="ob5e18c77";
-
+#my $dbuser="jhb348";
+#my $dbpasswd="ob5e18c77";
+my $dbuser="drp925";
+my $dbpasswd="o3d7f737e";
 
 #
 # The session cookie will contain the user's name and password so that 
@@ -746,36 +747,144 @@ sub MessageQuery {
 	if ($by ne "") {
 		if ($from ne "") {
 			if ($to ne "") {
+			      if($subj ne ""){
+				  if($content ne ""){
+				    ##author from to title content
+				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(author,?,'i') and regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$timefrom,$timeto,$by,$subj,$content);};
+				  }
+				  else{
+				    ##author from to title
+				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(author,?,'i') and regexp_like(subject,?,'i')",undef,$timefrom,$timeto,$by,$subj);};
+				  }
+			      }#end of subj
+			      else{
+				##author from to
 				eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(author,?,'i')",undef,$timefrom,$timeto,$by);};
-			}
+			      }
+			}#end of $to
 			else {
-			eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time>=? and regexp_like(author,?,'i')",undef,$timefrom,$by);};
+			    if($subj ne ""){
+			        if($content ne ""){
+			      	  ##author from title content
+				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time >=? and regexp_like(author,?,'i') and regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$timefrom,$by,$subj,$content);};
+				}
+				else{
+				  #author from title 
+				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time >=? and regexp_like(author,?,'i') and regexp_like(subject,?,'i')",undef,$timefrom,$by,$subj);};
+			       }
+			    }#end of subj
+			    else{
+			      ##author from
+			       eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time >=? and regexp_like(author,?,'i')",undef,$timefrom,$by);};
+			    }
 			}
-		}
+		}#end $from
+		
 		elsif ($to ne "") {
-			eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time<=? and regexp_like(author,?,'i')",undef,$timeto,$by);};
+			if($subj ne ""){
+				if($content ne ""){
+				    #author to title content
+				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? and regexp_like(author,?,'i') and regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$timeto,$by,$subj,$content);};
+				}
+				else{
+				  #author to title
+				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? and regexp_like(author,?,'i') and regexp_like(subject,?,'i')",undef,$timeto,$by,$subj);};
+				}
+			}#end of subj	
+			else{
+			  ##author to
+			  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? and regexp_like(author,?,'i')",undef,$timeto,$by);};
+			  
+			}
+		}#end $to
+		elsif ($subj ne ""){
+			if($content ne ""){
+			  #author title content
+			  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(author,?,'i') and regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$by,$subj,$content);};
+			}
+			else{
+			  #author title 
+			  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(author,?,'i') and regexp_like(subject,?,'i')",undef,$by,$subj);};
+			}
+			      
 		}
 		else {
-		eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(author,?,'i')",undef,$by);};
+		  #author
+		  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(author,?,'i')",undef,$by);};
 		}
-#
-#	  print "Row back:".join(",",@msgs);
-#
-	}
+	}#end $by
 	elsif ($from ne "") {
-		if ($to ne "") {
-			eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? order by time",undef,$timefrom,$timeto);};
-		}
-		else {
-		eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time>=? order by time",undef,$timefrom);};
-		}
-	}
+		      if ($to ne "") {
+			      if($subj ne ""){
+				  if($content ne ""){
+				    ##from to title content
+				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$timefrom,$timeto,$subj,$content);};
+				  }
+				  else{
+				    ##from to title
+				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(subject,?,'i')",undef,$timefrom,$timeto,$subj);};
+				  }
+			      }#end of subj
+			      else{
+				##from to
+				eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ?",undef,$timefrom,$timeto);};
+			      }
+			}#end of $to
+		      else {
+			    if($subj ne ""){
+			        if($content ne ""){
+			      	  ##from title content
+				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time >=? and regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$timefrom,$subj,$content);};
+				}
+				else{
+				  #from title 
+				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time >=? and regexp_like(subject,?,'i')",undef,$timefrom,$subj);};
+			       }
+			    }#end of subj
+			    else{
+			       ##from
+			       eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time>=?",undef,$timefrom);};
+			    }
+		      }
+
+	}#end $from
 	elsif ($to ne "") {
-		eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time<=? order by time",undef,$timeto);};
-	}
+			if($subj ne ""){
+				if($content ne ""){
+				    #to title content
+				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? and regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$timeto,$subj,$content);};
+				}
+				else{
+				  #to title
+				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? and regexp_like(subject,?,'i')",undef,$timeto,$subj);};
+				}
+			}#end of subj	
+			else{
+			  ##to
+			  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=?",undef,$timeto);};
+			  
+			}
+	}#end $to
+	elsif($subj ne ""){
+			if($content ne ""){
+			    ##title content
+			    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$subj,$content);};
+		         }
+			else{
+			  ##title
+			  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(subject,?, 'i')",undef,$subj);};
+			}
+	    
+	  
+	}#end $subj
+	elsif($content ne ""){
+	  ##content
+	  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(text,?, 'i')",undef,$content);};
+	}#end $content
 	else {
+	  ##nothing specified
 	  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where id<>0 order by time");};
-	}
+	}#end nothing specified
 
 # Original line: ignores criteria to show all messages
 # eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where id<>0 order by time");};
