@@ -59,10 +59,10 @@ $ENV{ORACLE_SID}="CS339";
 #
 # You need to override these for access to your database
 #
-#my $dbuser="jhb348";
-#my $dbpasswd="ob5e18c77";
-my $dbuser="drp925";
-my $dbpasswd="o3d7f737e";
+my $dbuser="jhb348";
+my $dbpasswd="ob5e18c77";
+#my $dbuser="drp925";
+#my $dbpasswd="o3d7f737e";
 
 #
 # The session cookie will contain the user's name and password so that 
@@ -352,6 +352,29 @@ if ($action eq "write") {
     }
   }
 }
+
+
+#	DELETE
+#
+# Deleting messages
+#
+#
+if ($action eq "delete" || param('deleterun')) { # deleterun = 1 in delete call
+	my $id = param('id'); # param('id')? or something else?
+	if (MsgOwner($user,$id) && UserCan($user,"delete-own-messages") || (UserCan($user,"delete-any-messages"))) {
+		# delete the message
+	  eval {ExecSQL($dbuser,$dbpasswd,"delete from blog_messages where id=?", undef, $id);};
+		print h2('Message has been deleted.');
+ 	}
+	else {
+		# print error statement
+		print h2('You do not have the required permissions to delete this message.');
+	}
+}
+
+
+
+
 
 
 # USERS
@@ -677,7 +700,16 @@ sub UserCan {
   }
 }
 
-
+sub MsgOwner {
+	my ($user,$id)=@_;
+	my @col;
+	eval {@col=ExecSQL($dbuser,$dbpasswd,"select count(*) from blog_messages where author=? and id=?","COL",$user,$id);};
+	if ($@) {
+		return 0;
+	} else {
+		return $col[0]>0;
+	}
+}
 
 
 #
@@ -717,15 +749,16 @@ sub Post {
 sub MessageSummary {
   my @rows;
   eval { @rows = ExecSQL($dbuser,$dbpasswd,
-                         "select author,subject,time from blog_messages where id<>0 order by time");};
+                         "select author,subject,time,id from blog_messages where id<>0 order by time");};
   if ($@) { 
     return (undef,$@);
   } else {
     # Convert time values to pretty printed version
     foreach my $r (@rows) {
       $r->[2]=localtime($r->[2]);
+			$r->[3]="<a href=blog.pl?act=delete&deleterun=1&id=$r->[3]>delete</a>";
     }
-    return (MakeTable("2D", ["Author","Subject","Time"],@rows),$@);
+    return (MakeTable("2D", ["Author","Subject","Time","Message Id"],@rows),$@);
   }
 }
 
