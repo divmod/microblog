@@ -796,7 +796,7 @@ sub Post {
 sub MessageSummary {
   my @rows;
   eval { @rows = ExecSQL($dbuser,$dbpasswd,
-                         "select author,subject,time,id from blog_messages where id<>0 order by time");};
+                         "select author,subject,time,id,id from blog_messages where id<>0 order by time");};
   if ($@) { 
     return (undef,$@);
   } else {
@@ -804,8 +804,9 @@ sub MessageSummary {
     foreach my $r (@rows) {
       $r->[2]=localtime($r->[2]);
 			$r->[3]="<a href=blog.pl?act=delete&deleterun=1&id=$r->[3]>delete</a>";
-    }
-    return (MakeTable("2D", ["Author","Subject","Time","Delete?"],@rows),$@);
+			$r->[4]="<a href=blog.pl?act=reply&respid=$r->[4]>reply</a>";
+		}
+    return (MakeTable("2D", ["Author","Subject","Time","Delete?","Reply?"],@rows),$@);
   }
 }
 
