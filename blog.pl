@@ -362,9 +362,14 @@ if ($action eq "write") {
 if ($action eq "delete" || param('deleterun')) { # deleterun = 1 in delete call
 	my $id = param('id'); # param('id')? or something else?
 	if (MsgOwner($user,$id) && UserCan($user,"delete-own-messages") || (UserCan($user,"delete-any-messages"))) {
+		if (HasRef($id)) {
+			print h2('Message cannot be deleted because other messages refer to it.');
+		}
+		else {
 		# delete the message
 	  eval {ExecSQL($dbuser,$dbpasswd,"delete from blog_messages where id=?", undef, $id);};
 		print h2('Message has been deleted.');
+		}
  	}
 	else {
 		# print error statement
@@ -380,6 +385,7 @@ if ($action eq "delete" || param('deleterun')) { # deleterun = 1 in delete call
 #
 if ($action eq "reply") {
 	my $respid = param('respid');
+	# print $respid;
 	if(UserCan($user,"write-messages")) {
     #
     # Generate the form.
@@ -394,7 +400,8 @@ if ($action eq "reply") {
 		   -rows=>16,
 		   -columns=>80),
           hidden(-name=>'postrun',-default=>['1']),
-	  hidden(-name=>'act',-default=>['write']), p
+					hidden(-name=>'respid',-default=>[$respid]),
+	  hidden(-name=>'act',-default=>['reply']), p
 	  submit,
 	  end_form,
 	  hr;
@@ -407,6 +414,8 @@ if ($action eq "reply") {
       my $by=$user;
       my $text=param('reply');
       my $subject=param('subject');
+			my $respid=param('respid');
+			# print "Response id: $respid";
       my $error=Post($respid,$by,$subject,$text);
       if ($error) { 
 	print "Can't post message because: $error";
@@ -747,6 +756,17 @@ sub UserCan {
   }
 }
 
+sub HasRef {
+	my ($id) = @_;
+	my @col;
+	eval {@col=ExecSQL($dbuser,$dbpasswd,"select count(*) from blog_messages where respid=?","COL",$id);};
+	if ($@) {
+		return 0;
+	} else {
+		return $col[0]>0;
+	}
+}
+
 sub MsgOwner {
 	my ($user,$id)=@_;
 	my @col;
@@ -986,7 +1006,7 @@ sub MessageQuery {
       $out.="<tr><td><b>author:</b></td><td colspan=5>$author</td></tr>";
       $out.="<tr><td><b>subject:</b></td><td colspan=5>$subject</td></tr>";
       $out.="<tr><td colspan=6>$text</td></tr>";
-			$out.="<tr><td colspan=3><a href=blog.pl?act=delete&deleterun=1&id=$id>delete</a></td><td colspan=3>reply</td></tr>";
+			$out.="<tr><td colspan=3><a href=blog.pl?act=delete&deleterun=1&id=$id>delete</a></td><td colspan=3><a href=blog.pl?act=reply&respid=$id>reply</a></td></tr>";
       $out.="</table>";
     }
     return ($out,$@);
