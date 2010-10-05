@@ -373,6 +373,53 @@ if ($action eq "delete" || param('deleterun')) { # deleterun = 1 in delete call
 }
 
 
+# REPLY
+#
+# Replying to messages
+#
+#
+if ($action eq "reply") {
+	my $respid = param('respid');
+	if(UserCan($user,"write-messages")) {
+    #
+    # Generate the form.
+    # Your reply functionality will be similar to this
+    #
+    print start_form(-name=>'Reply'),
+      h2('Reply to a blog entry'),
+	"Subject:", textfield(-name=>'subject'),
+	  p,
+	  textarea(-name=>'reply', 
+		   -default=>'Write your reply here.',
+		   -rows=>16,
+		   -columns=>80),
+          hidden(-name=>'postrun',-default=>['1']),
+	  hidden(-name=>'act',-default=>['write']), p
+	  submit,
+	  end_form,
+	  hr;
+
+    #
+    # If we're being invoked with parameters, then
+    # do the actual posting. 
+    #
+    if (param('postrun')) { 
+      my $by=$user;
+      my $text=param('reply');
+      my $subject=param('subject');
+      my $error=Post($respid,$by,$subject,$text);
+      if ($error) { 
+	print "Can't post message because: $error";
+      } else {
+	print "Posted the following on $subject in response to message $respid from $by:<p>$text";
+      }
+    }
+	}
+	else {
+		print h2('You do not have the required permissions to write a message.');
+	}
+}
+
 
 
 
@@ -938,6 +985,7 @@ sub MessageQuery {
       $out.="<tr><td><b>author:</b></td><td colspan=5>$author</td></tr>";
       $out.="<tr><td><b>subject:</b></td><td colspan=5>$subject</td></tr>";
       $out.="<tr><td colspan=6>$text</td></tr>";
+			$out.="<tr><td colspan=3><a href=blog.pl?act=delete&deleterun=1&id=$id>delete</a></td><td colspan=3>reply</td></tr>";
       $out.="</table>";
     }
     return ($out,$@);
