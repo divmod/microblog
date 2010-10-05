@@ -758,7 +758,7 @@ sub MessageSummary {
       $r->[2]=localtime($r->[2]);
 			$r->[3]="<a href=blog.pl?act=delete&deleterun=1&id=$r->[3]>delete</a>";
     }
-    return (MakeTable("2D", ["Author","Subject","Time","Message Id"],@rows),$@);
+    return (MakeTable("2D", ["Author","Subject","Time","Delete?"],@rows),$@);
   }
 }
 
