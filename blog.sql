@@ -115,6 +115,15 @@ create table blog_messages (
 
 
 --
+-- Create a table for uploaded blog images (BLOB type)
+--
+
+create table blog_images (
+	id number not null primary key references blog_messages(id),
+	image BLOB not null
+);
+
+--
 -- Create a set of actions
 --
 --
