@@ -331,7 +331,11 @@ if ($action eq "write") {
 		   -columns=>80),
           hidden(-name=>'postrun',-default=>['1']),
 	  hidden(-name=>'act',-default=>['write']), p
-	  submit,
+		filefield(-name=>'imgupload',
+			-default=>'startingvalue',
+			-size=>50,
+			-maxlength=>80),p
+		submit,
 	  end_form,
 	  hr;
 
