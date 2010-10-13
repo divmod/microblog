@@ -47,6 +47,8 @@ use DBI;
 #
 use Time::ParseDate;
 
+use URI::Escape;
+
 
 #
 # The following is necessary so that DBD::Oracle can
@@ -321,7 +323,7 @@ if ($action eq "write") {
     # Generate the form.
     # Your reply functionality will be similar to this
     #
-    print start_form(-name=>'Write'),
+    print start_multipart_form(-name=>'Write'),
       h2('Make blog entry'),
 	"Subject:", textfield(-name=>'subject'),
 	  p,
@@ -331,7 +333,7 @@ if ($action eq "write") {
 		   -columns=>80),
           hidden(-name=>'postrun',-default=>['1']),
 	  hidden(-name=>'act',-default=>['write']), p
-		filefield(-name=>'imgupload',
+		filefield(-name=>'img',
 			-default=>'startingvalue',
 			-size=>50,
 			-maxlength=>80),p
@@ -347,11 +349,39 @@ if ($action eq "write") {
       my $by=$user;
       my $text=param('post');
       my $subject=param('subject');
-      my $error=Post(0,$by,$subject,$text);
-      if ($error) { 
-	print "Can't post message because: $error";
-      } else {
-	print "Posted the following on $subject from $by:<p>$text";
+			my $file=param('img');
+
+			if (defined ($file) && $file ne "") {
+				
+				open(LOCAL, ">$file") or die $!;
+				while(<$file>) {
+					print LOCAL $_;
+				}
+				close(LOCAL);
+				
+				my $error=Post(0,$by,$subject,$text);
+	    	if ($error) { 
+					print "Can't post message because: $error";
+		    } else {
+					print "Posted the following on the $subject from $by:<p>$text<p>";
+				}
+				my $id = GetId($by,$subject,$text);
+				print $id."<p>";
+				my $bloberror=BlobInsert($dbuser, $dbpasswd, $id, $file);
+				if ($bloberror) {
+					print "Can't post message with upload image because: $bloberror";
+				} else {
+					print "Successfully posted and uploaded the image.";
+				}
+				unlink($file);
+			}
+			else {
+				my $error=Post(0,$by,$subject,$text);
+	      if ($error) { 
+					print "Can't post message because: $error";
+	      } else {
+					print "Posted the following on $subject from $by:<p>$text<p>";
+				}
       }
     }
   }
@@ -782,6 +812,17 @@ sub MsgOwner {
 	}
 }
 
+sub GetId {
+	my ($by, $subject, $text) = @_;
+	my @col;
+	eval{@col=ExecSQL($dbuser, $dbpasswd, "select id from blog_messages where author=? and subject=? and text=?",'ROW',$by, $subject, $text);};
+	if($@) {
+		return 0;
+	} else {
+		return $col[0];
+	}
+}
+
 
 #
 # Post a message
@@ -808,6 +849,28 @@ sub Post {
 		undef, $respid, $author, $subject, time(), $text); };
   return $@ ;
 }
+
+#
+# Post With Image
+#
+# returns false if successful, error string on failure
+#
+# PostImg($respid, $author, $subject, $text, $data);
+#
+# $data => Image data of the uploaded file
+#
+#sub PostImg{
+#	my ($respid, $author, $subject, $text, $data) = @_;
+#
+#	eval { ExecSQL($dbuser,$dbpasswd,"insert into blog_messages (id,respid,author,subject,time,text) ".
+#		 "select blog_message_id.nextval, ?, ?, ?, ?, ? from dual",
+#			undef, $respid, $author, $subject, time(), $text);
+#		ExecSQL($dbuser,$dbpasswd,"insert into blog_images (id,image) ".
+#			"select last_number, ? from user_sequences",
+#			undef, $data);
+#	};
+#		return $@;
+#}
 
 
 #
@@ -1000,7 +1063,7 @@ sub MessageQuery {
   } else {
     my $msg;
     my $out="";
-    my $out.="<h3>Messages from $timefrom to $timeto by '$by'<h3>";
+    $out.="<h3>Messages from $timefrom to $timeto by '$by'<h3>";
     if ($#msgs<0) { 
       $out.="There are no messages";
     }
@@ -1152,3 +1215,56 @@ sub ExecSQL {
   return @ret;
 }
 
+#
+# @list=BlobInsert($user, $password, $respid, $author, $subject, $text, $filename);
+# combines with: Post($respid, $author, $subject, $text)
+# Executes a SQL statement for Blobs.  If $type is "ROW", returns first row in list
+# if $type is "COL" returns first column.  Otherwise, returns
+# the whole result table as a list of references to row lists.
+# @fill are the fillers for positional parameters in $querystring
+#
+# BlobInsert executes "die" on failure.
+#
+sub BlobInsert {
+	my ($user, $passwd, $id,$filename) = @_;
+	my ($dbh, $sth, $size, $buf, $n);
+	$size = (stat ($filename))[7];
+	open (BLOB,$filename);
+	$n = read(BLOB, $buf, $size);
+	print "Number of characters read: $n";
+	close(BLOB);
+	$dbh = DBI->connect("DBI:Oracle:",$user,$passwd) or die "connect failed: $DBI::errstr\n";
+	$dbh->{'LongReadLen'}=2**20;
+#	$sth = $dbh->prepare("insert into blog_messages (id,respid,author,subject,time,text) select blog_message_id.nextval, $respid, '$author', '$subject', $time, '$text' from dual"); 
+#	$sth->execute() or die "post failed: $DBI::errstr\n";
+	$sth = $dbh->prepare("insert into blog_images values ($id,:temp)") or die "prepare failed: $DBI::errstr\n";
+	$sth->bind_param(":temp",$buf, {ora_type=>24} ) or die "Can't bind: $DBI::errstr\n";
+	$sth->execute() or die "execute failed: $DBI::errstr\n";
+#	$sth->finish();
+
+	my @data;
+#  if (defined $type and $type eq "ROW") { 
+#    @data=$sth->fetchrow_array();
+#    $sth->finish();
+#    if ($show_sqloutput) {push @sqloutput, MakeTable("ROW",undef,@data);}
+#    $dbh->disconnect();
+#    return @data;
+#  }
+  my @ret;
+  while (@data=$sth->fetchrow_array()) {
+    push @ret, [@data];
+  }
+#  if (defined $type and $type eq "COL") { 
+#    @data = map {$_->[0]} @ret;
+#    $sth->finish();
+#    if ($show_sqloutput) {push @sqloutput, MakeTable("COL",undef,@data);}
+#    $dbh->disconnect();
+#    return @data;
+#  }
+  $sth->finish();
+  if ($show_sqloutput) {push @sqloutput, MakeTable("2D",undef,@ret);}
+  $dbh->disconnect();
+  return @ret;
+
+# $dbh->disconnect();
+}
