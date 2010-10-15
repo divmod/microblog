@@ -436,6 +436,10 @@ if ($action eq "reply") {
           hidden(-name=>'postrun',-default=>['1']),
 					hidden(-name=>'respid',-default=>[$respid]),
 	  hidden(-name=>'act',-default=>['reply']), p
+		filefield(-name=>'img',
+			-default=>'startingvalue',
+			-size=>50,
+			-maxlength=>80),p
 	  submit,
 	  end_form,
 	  hr;
@@ -449,6 +453,35 @@ if ($action eq "reply") {
       my $text=param('reply');
       my $subject=param('subject');
 			my $respid=param('respid');
+
+			my $file=param('img');
+
+			if (defined ($file) && $file ne "") {
+				
+				open(LOCAL, ">$file") or die $!;
+				while(<$file>) {
+					print LOCAL $_;
+				}
+				close(LOCAL);
+				
+				my $error=Post($respid,$by,$subject,$text);
+	    	if ($error) { 
+					print "Can't post message because: $error";
+		    } else {
+					print "Posted the following on the $subject from $by:<p>$text<p>";
+				}
+				my $id = GetId($by,$subject,$text);
+				print $id."<p>";
+				my $bloberror=BlobInsert($dbuser, $dbpasswd, $id, $file);
+				if ($bloberror) {
+					print "Can't post message with upload image because: $bloberror";
+				} else {
+					print "Successfully posted and uploaded the image.";
+				}
+				unlink($file);
+			}
+			else {
+
 			# print "Response id: $respid";
       my $error=Post($respid,$by,$subject,$text);
       if ($error) { 
@@ -456,6 +489,7 @@ if ($action eq "reply") {
       } else {
 	print "Posted the following on $subject in response to message $respid from $by:<p>$text";
       }
+			}
     }
 	}
 	else {
@@ -463,8 +497,26 @@ if ($action eq "reply") {
 	}
 }
 
-
-
+#
+# IMAGE
+#
+# Displaying an image from the database
+#
+if ($action eq "image") {
+# is a check necessary for permissions?
+# just display the image
+# assume the id param passed has already went through the check for having an image
+	my $id = param('id');
+	my $imgdata = BlobExtract($dbuser,$dbpasswd,$id);
+#	print $imgdata;
+	my $filename = $id.".jpg";
+#	print $filename;
+	open(LOCAL,">$filename");
+	binmode(LOCAL);
+	print LOCAL $imgdata;
+	close(LOCAL);
+	print "<img src=\"$filename\">";
+}
 
 
 # USERS
@@ -801,6 +853,17 @@ sub HasRef {
 	}
 }
 
+sub HasImg {
+	my($id) = @_;
+	my @col;
+	eval {@col=ExecSQL($dbuser,$dbpasswd,"select count(*) from blog_images where id=?","COL",$id);};
+	if ($@) {
+		return 0;
+	} else {
+		return $col[0]>0;
+	}
+}
+
 sub MsgOwner {
 	my ($user,$id)=@_;
 	my @col;
@@ -815,7 +878,7 @@ sub MsgOwner {
 sub GetId {
 	my ($by, $subject, $text) = @_;
 	my @col;
-	eval{@col=ExecSQL($dbuser, $dbpasswd, "select id from blog_messages where author=? and subject=? and text=?",'ROW',$by, $subject, $text);};
+	eval{@col=ExecSQL($dbuser, $dbpasswd, "select id from blog_messages where author=? and subject=? and text=?","COL",$by, $subject, $text);};
 	if($@) {
 		return 0;
 	} else {
@@ -823,6 +886,16 @@ sub GetId {
 	}
 }
 
+sub GetImg {
+	my ($id) = @_;
+	my @col;
+	eval{@col=ExecSQL($dbuser, $dbpasswd, "select image from blog_images where id=?", "COL",$id);};
+	if ($@) {
+		return 0;
+	} else {
+		return $col[0];
+	}
+}
 
 #
 # Post a message
@@ -1073,6 +1146,9 @@ sub MessageQuery {
       $out.="<tr><td><b>author:</b></td><td colspan=5>$author</td></tr>";
       $out.="<tr><td><b>subject:</b></td><td colspan=5>$subject</td></tr>";
       $out.="<tr><td colspan=6>$text</td></tr>";
+			if(HasImg($id)) {
+				$out.="<tr><td colspan=6><a href=\"blog.pl?act=image&id=$id\">Attached Image</a></td></tr>";
+			}
 			$out.="<tr><td colspan=3><a href=blog.pl?act=delete&deleterun=1&id=$id>delete</a></td><td colspan=3><a href=blog.pl?act=reply&respid=$id>reply</a></td></tr>";
       $out.="</table>";
     }
@@ -1213,6 +1289,20 @@ sub ExecSQL {
   if ($show_sqloutput) {push @sqloutput, MakeTable("2D",undef,@ret);}
   $dbh->disconnect();
   return @ret;
+}
+
+sub BlobExtract {
+	my ($user, $passwd, $id) = @_;
+	my ($dbh, $sth, $data);
+
+	$dbh = DBI->connect("DBI:Oracle:",$user,$passwd) or die "connect failed: $DBI::errstr\n";
+	$dbh->{'LongReadLen'}=2**20;
+	$sth = $dbh->prepare("select image from blog_images where id=$id") or die "Can't prepare: $DBI::errstr\n";
+	$sth->execute() or die "execute failed: $DBI::errstr\n";
+	($data) = $sth->fetchrow_array();
+	$sth->finish();
+	$dbh->disconnect();
+	return $data;
 }
 
 #
