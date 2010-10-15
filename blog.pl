@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-
+use POSIX;
 #
 # Some debugging options
 # all of this debugging info will be shown at the *end* of script
@@ -47,8 +47,6 @@ use DBI;
 #
 use Time::ParseDate;
 
-use URI::Escape;
-
 
 #
 # The following is necessary so that DBD::Oracle can
@@ -61,10 +59,10 @@ $ENV{ORACLE_SID}="CS339";
 #
 # You need to override these for access to your database
 #
-my $dbuser="jhb348";
-my $dbpasswd="ob5e18c77";
-#my $dbuser="drp925";
-#my $dbpasswd="o3d7f737e";
+#my $dbuser="jhb348";
+#my $dbpasswd="ob5e18c77";
+my $dbuser="drp925";
+my $dbpasswd="o3d7f737e";
 
 #
 # The session cookie will contain the user's name and password so that 
@@ -77,25 +75,21 @@ my $dbpasswd="ob5e18c77";
 # AND CONSIDER SUPPORTING ONLY HTTPS
 #
 my $cookiename="MicroblogSession";
-my $imagecookie="Images Downloaded";
 
 #
 # Get the session input cookie, if any
 #
 my $inputcookiecontent = cookie($cookiename);
-my $imagecookiecontent = cookie($imagecookie);
 
 #
 # Will be filled in as we process the cookies and paramters
 #
 my $outputcookiecontent = undef;
-my $outputimagecookiecontent = undef;
 my $deletecookie=0;
 my $user = undef;
 my $password = undef;
 my $loginok=0;
 my $logincomplain=0;
-
 #
 #
 # Get action user wants to perform
@@ -192,16 +186,6 @@ if ($outputcookiecontent) {
   print header(-expires=>'now');
 }
 
-if ($outputimagecookiecontent) {
-	my $cookie=cookie(-name=>$imagecookie,
-		-value=>$outputimagecookiecontent,
-		-expires=>($deletecookie ? '-1h' : '+1h'));
-	print header(-expires=>'now', -cookie=>$cookie);
-} else {
-	print header(-expires=>'now');
-}
-
-
 #
 # Now we finally begin spitting back HTML
 #
@@ -257,7 +241,7 @@ if ($action eq "logout") {
   print "<h2>You have been successfully logged out</h2>";
 }
 
-# QUERY
+# 
 #
 # Query is a "normal" form.
 #
@@ -266,6 +250,8 @@ if ($action eq "query") {
   #
   # check to see if user can see this
   #
+  my $page = param('page');
+  my $flag = param('flag');
   if (!UserCan($user,"query-messages")) { 
     print h2('You do not have the required permissions to query messages.');
   } else {
@@ -279,28 +265,41 @@ if ($action eq "query") {
 	  "To: ", textfield(-name=>'to',-default=>'now'),
 	    p, "By: ", textfield('by'),
 			p, "Subject: ", textfield('subject'),
-			p, "Content: ", textfield('content'), p
+			p, "Content: ", textfield('content'),
+			p
 	      hidden(-name=>'queryrun',default=>['1']),
 		hidden(-name=>'act',default=>['query']),
+		hidden(-name=>'page',default=>['1']),
 		  submit,
+		 
 		    end_form;
     #
     # if we have the hidden parameter queryrun, then we have
     # been invoked with data
     #
-    if (param('queryrun')) {
+     #Msg per page
+      my $msgPerPage = 5;
+      
+    if (param('queryrun') || $flag) {
       my $from=param('from');
       my $to=param('to');
       my $by=param('by');
-			my $subj=param('subject');
-			my $content=param('content');
+      my $subj=param('subject');
+      my $content=param('content');
+      my $page = param('page');
+      $flag = 1;
+      #if($param('flag'); 
       #
       # Run the query (note, you need to write MessageQuery!)
       # to actually use the parameters.  Right now it just returns all
       # the messages.
       #
-      my ($mq,$error) = MessageQuery($from,$to,$by,$subj,$content);
-      if ($error) { 
+      my $count = 0;
+      my ($mq,$count, $error) = MessageQuery($from,$to,$by,$subj,$content, $page, $msgPerPage);
+      print "count=".$count;
+      my $p = getPagination($msgPerPage, $page, $count, $flag);
+      print $p;
+      if ($error ) { 
 	print "Can't query messages because: $error";
       } else {
 	print $mq;
@@ -311,15 +310,34 @@ if ($action eq "query") {
       # display a message summary.  You will update this to give
       # a tree display
       #
-      my ($ms,$error)=MessageSummary();
-      if ($error) { 
-	print "Can't summarize messages because: $error";
-      } else {
-	print $ms;
-      }
-    }
-  }
-}
+       
+      
+      #Determine how many rows from the query
+            
+      $flag = 0;
+      my $numRows = totalRows();
+      #Determine the num of pages
+      my $numPages = ceil($numRows/$msgPerPage);
+      my $i;
+      #my $page = 1;
+      my $end = $msgPerPage * $page;
+      my $p = getPagination($msgPerPage, $page, $numRows, $flag);
+      #for($i = 1; $i <= $numRows; $i = $i + $msgPerPage){
+	#print $i;
+	#print " ";
+	#print $i + $msgPerPage;
+	print $p;
+        my ($ms,$error)=MessageSummary($end, $msgPerPage, $numRows);
+        if ($error) { 
+	  print "Can't summarize messages because: $error";
+        } else {
+	  print $ms;
+        }
+	#$page++;
+      #}#end for
+    }#end if param query run
+  }#end else of usercan
+}#END ACTION QUERY
 
 # WRITE
 #
@@ -337,7 +355,7 @@ if ($action eq "write") {
     # Generate the form.
     # Your reply functionality will be similar to this
     #
-    print start_multipart_form(-name=>'Write'),
+    print start_form(-name=>'Write'),
       h2('Make blog entry'),
 	"Subject:", textfield(-name=>'subject'),
 	  p,
@@ -347,11 +365,7 @@ if ($action eq "write") {
 		   -columns=>80),
           hidden(-name=>'postrun',-default=>['1']),
 	  hidden(-name=>'act',-default=>['write']), p
-		filefield(-name=>'img',
-			-default=>'startingvalue',
-			-size=>50,
-			-maxlength=>80),p
-		submit,
+	  submit,
 	  end_form,
 	  hr;
 
@@ -363,39 +377,11 @@ if ($action eq "write") {
       my $by=$user;
       my $text=param('post');
       my $subject=param('subject');
-			my $file=param('img');
-
-			if (defined ($file) && $file ne "") {
-				
-				open(LOCAL, ">$file") or die $!;
-				while(<$file>) {
-					print LOCAL $_;
-				}
-				close(LOCAL);
-				
-				my $error=Post(0,$by,$subject,$text);
-	    	if ($error) { 
-					print "Can't post message because: $error";
-		    } else {
-					print "Posted the following on the $subject from $by:<p>$text<p>";
-				}
-				my $id = GetId($by,$subject,$text);
-				print $id."<p>";
-				my $bloberror=BlobInsert($dbuser, $dbpasswd, $id, $file);
-				if ($bloberror) {
-					print "Can't post message with upload image because: $bloberror";
-				} else {
-					print "Successfully posted and uploaded the image.";
-				}
-				unlink($file);
-			}
-			else {
-				my $error=Post(0,$by,$subject,$text);
-	      if ($error) { 
-					print "Can't post message because: $error";
-	      } else {
-					print "Posted the following on $subject from $by:<p>$text<p>";
-				}
+      my $error=Post(0,$by,$subject,$text);
+      if ($error) { 
+	print "Can't post message because: $error";
+      } else {
+	print "Posted the following on $subject from $by:<p>$text";
       }
     }
   }
@@ -450,10 +436,6 @@ if ($action eq "reply") {
           hidden(-name=>'postrun',-default=>['1']),
 					hidden(-name=>'respid',-default=>[$respid]),
 	  hidden(-name=>'act',-default=>['reply']), p
-		filefield(-name=>'img',
-			-default=>'startingvalue',
-			-size=>50,
-			-maxlength=>80),p
 	  submit,
 	  end_form,
 	  hr;
@@ -467,35 +449,6 @@ if ($action eq "reply") {
       my $text=param('reply');
       my $subject=param('subject');
 			my $respid=param('respid');
-
-			my $file=param('img');
-
-			if (defined ($file) && $file ne "") {
-				
-				open(LOCAL, ">$file") or die $!;
-				while(<$file>) {
-					print LOCAL $_;
-				}
-				close(LOCAL);
-				
-				my $error=Post($respid,$by,$subject,$text);
-	    	if ($error) { 
-					print "Can't post message because: $error";
-		    } else {
-					print "Posted the following on the $subject from $by:<p>$text<p>";
-				}
-				my $id = GetId($by,$subject,$text);
-				print $id."<p>";
-				my $bloberror=BlobInsert($dbuser, $dbpasswd, $id, $file);
-				if ($bloberror) {
-					print "Can't post message with upload image because: $bloberror";
-				} else {
-					print "Successfully posted and uploaded the image.";
-				}
-				unlink($file);
-			}
-			else {
-
 			# print "Response id: $respid";
       my $error=Post($respid,$by,$subject,$text);
       if ($error) { 
@@ -503,7 +456,6 @@ if ($action eq "reply") {
       } else {
 	print "Posted the following on $subject in response to message $respid from $by:<p>$text";
       }
-			}
     }
 	}
 	else {
@@ -511,29 +463,8 @@ if ($action eq "reply") {
 	}
 }
 
-#
-# IMAGE
-#
-# Displaying an image from the database
-#
-if ($action eq "image") {
-# is a check necessary for permissions?
-# just display the image
-# assume the id param passed has already went through the check for having an image
-	my $id = param('id');
-	my $imgdata = BlobExtract($dbuser,$dbpasswd,$id);
-#	print $imgdata;
-	my $filename = $id.".jpg";
 
-	my $outputimagecookie = $filename;
 
-#	print $filename;
-	open(LOCAL,">$filename");
-	binmode(LOCAL);
-	print LOCAL $imgdata;
-	close(LOCAL);
-	print "<img src=\"$filename\">";
-}
 
 
 # USERS
@@ -870,15 +801,18 @@ sub HasRef {
 	}
 }
 
-sub HasImg {
-	my($id) = @_;
-	my @col;
-	eval {@col=ExecSQL($dbuser,$dbpasswd,"select count(*) from blog_images where id=?","COL",$id);};
+sub totalRows{
+  my @rows;
+  my $size;
+	eval {@rows=ExecSQL($dbuser,$dbpasswd,"select author,subject,time,id,id from blog_messages");};
 	if ($@) {
 		return 0;
 	} else {
-		return $col[0]>0;
+	        $size = scalar @rows;
+	        #print $size;
+		return $size;
 	}
+  
 }
 
 sub MsgOwner {
@@ -892,27 +826,6 @@ sub MsgOwner {
 	}
 }
 
-sub GetId {
-	my ($by, $subject, $text) = @_;
-	my @col;
-	eval{@col=ExecSQL($dbuser, $dbpasswd, "select id from blog_messages where author=? and subject=? and text=?","COL",$by, $subject, $text);};
-	if($@) {
-		return 0;
-	} else {
-		return $col[0];
-	}
-}
-
-sub GetImg {
-	my ($id) = @_;
-	my @col;
-	eval{@col=ExecSQL($dbuser, $dbpasswd, "select image from blog_images where id=?", "COL",$id);};
-	if ($@) {
-		return 0;
-	} else {
-		return $col[0];
-	}
-}
 
 #
 # Post a message
@@ -940,28 +853,6 @@ sub Post {
   return $@ ;
 }
 
-#
-# Post With Image
-#
-# returns false if successful, error string on failure
-#
-# PostImg($respid, $author, $subject, $text, $data);
-#
-# $data => Image data of the uploaded file
-#
-#sub PostImg{
-#	my ($respid, $author, $subject, $text, $data) = @_;
-#
-#	eval { ExecSQL($dbuser,$dbpasswd,"insert into blog_messages (id,respid,author,subject,time,text) ".
-#		 "select blog_message_id.nextval, ?, ?, ?, ?, ? from dual",
-#			undef, $respid, $author, $subject, time(), $text);
-#		ExecSQL($dbuser,$dbpasswd,"insert into blog_images (id,image) ".
-#			"select last_number, ? from user_sequences",
-#			undef, $data);
-#	};
-#		return $@;
-#}
-
 
 #
 # Generate a summary of messages (a table of all messages in the system)
@@ -971,20 +862,50 @@ sub Post {
 # ($table,$error) = MessageSummary();
 #
 sub MessageSummary {
+  #print "Came here";
+  my ($end, $msgPerPage, $numrows) = @_;
   my @rows;
-  eval { @rows = ExecSQL($dbuser,$dbpasswd,
-                         "select author,subject,time,id,id from blog_messages where id<>0 order by time");};
-  if ($@) { 
-    return (undef,$@);
-  } else {
-    # Convert time values to pretty printed version
-    foreach my $r (@rows) {
-      $r->[2]=localtime($r->[2]);
+  #
+  #calculate the number of pages
+  #
+  #print $msgPerPage. " ";
+  #print $numrows. " ";
+  #print $page. " ";
+  
+   my $start = $end - $msgPerPage + 1;
+   #$end = $start + $msgPerPage - 1;
+   
+    if($end > $numrows){
+      $end = $numrows;
+    }
+
+    #print "end:". $end;
+    #where id<>0 order by time
+    #eval { @rows = ExecSQL($dbuser,$dbpasswd,
+     #                   "select author,subject,time,id,id from blog_messages where rownum between ? and ? order by time",undef,$start, $end);};
+    eval { @rows = ExecSQL($dbuser,$dbpasswd,
+                          "select author,subject,time,id,id from
+			  (SELECT x.author, x.subject, x.time, x.id, rownum as r FROM
+			  (select author,subject,time,id,rownum from blog_messages order by time DESC)x)
+			   where r between ? and ? and id <>0",undef,$start, $end);};
+   # print @rows;
+    if ($@) {
+      #print "I came here";
+      return (undef,$@);
+    } else {
+    
+       
+		    
+      # Convert time values to pretty printed version
+      #print @rows;
+      foreach my $r (@rows) {
+			$r->[2]=localtime($r->[2]);
 			$r->[3]="<a href=blog.pl?act=delete&deleterun=1&id=$r->[3]>delete</a>";
 			$r->[4]="<a href=blog.pl?act=reply&respid=$r->[4]>reply</a>";
-		}
-    return (MakeTable("2D", ["Author","Subject","Time","Delete?","Reply?"],@rows),$@);
-  }
+  		}
+      return (MakeTable("2D", ["Author","Subject","Time","Delete?","Reply?"],@rows),$@);
+    }
+
 }
 
 #
@@ -995,7 +916,7 @@ sub MessageSummary {
 # ($html,$error) = MessageQuery($from,$to,$by,$subj,$content)
 #
 sub MessageQuery {
-  my ($from, $to, $by, $subj, $content) = @_;
+  my ($from, $to, $by, $subj, $content, $page, $msgPerPage) = @_;
   
   my $timefrom=parsedate($from);
   my $timeto=parsedate($to);
@@ -1147,8 +1068,8 @@ sub MessageQuery {
 # Original line: ignores criteria to show all messages
 # eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where id<>0 order by time");};
 
-	if ($@) {  
-		print "An error occured processing the SQL statement\n";
+  if ($@) {  
+    print "An error occured processing the SQL statement\n";
     return (undef,$@);
   } else {
     my $msg;
@@ -1157,19 +1078,31 @@ sub MessageQuery {
     if ($#msgs<0) { 
       $out.="There are no messages";
     }
-    foreach $msg (@msgs) { 
-      my ($id, $respid, $author, $subject, $time, $text) = @{$msg};
+    
+    my $i;
+    my $end = $page * $msgPerPage;
+    print "end:".$end."<p>";
+   
+    my $start = $end - $msgPerPage + 1;
+     print "start:".$start."<p> ";
+    my $count = scalar @msgs;
+    if($end > $count){
+      $end = $count;
+    }
+    #print "msgs: ".$msgs." ";
+    for($i = $start - 1; $i < $end; $i++){
+    #foreach $msg (@msgs) {
+      print "i:".$i."<p>";
+
+      my ($id, $respid, $author, $subject, $time, $text) = @{$msgs[$i]};
       $out.="<table border><tr><td><b>id:</b></td><td>$id</td><td><b>respid:</b></td><td>$respid</td><td><b>Time:</b></td><td>".localtime($time)."</td></tr>";
       $out.="<tr><td><b>author:</b></td><td colspan=5>$author</td></tr>";
       $out.="<tr><td><b>subject:</b></td><td colspan=5>$subject</td></tr>";
       $out.="<tr><td colspan=6>$text</td></tr>";
-			if(HasImg($id)) {
-				$out.="<tr><td colspan=6><a href=\"blog.pl?act=image&id=$id\">Attached Image</a></td></tr>";
-			}
 			$out.="<tr><td colspan=3><a href=blog.pl?act=delete&deleterun=1&id=$id>delete</a></td><td colspan=3><a href=blog.pl?act=reply&respid=$id>reply</a></td></tr>";
       $out.="</table>";
     }
-    return ($out,$@);
+    return ($out, $count, $@);
   }
 }
 
@@ -1193,10 +1126,13 @@ sub MakeTable {
   #
   # Check to see if there is anything to output
   #
+  
   if ((defined $headerlistref) || ($#list>=0)) {
+  
     # if there is, begin a table
     #
-    $out="<table border>";
+  
+    $out.="<table border>";
     #
     # if there is a header list, then output it in bold
     #
@@ -1224,6 +1160,8 @@ sub MakeTable {
       $out.= join("",map {"<tr>$_</tr>"} (map {join("",map {"<td>$_</td>"} @{$_})} @list));
     }
     $out.="</table>";
+    #$out.="Hello World";
+   
   } else {
     # if no header row or list, then just say none.
     $out.="(none)";
@@ -1308,70 +1246,59 @@ sub ExecSQL {
   return @ret;
 }
 
-sub BlobExtract {
-	my ($user, $passwd, $id) = @_;
-	my ($dbh, $sth, $data);
+#pagination
+# PHP pagination code by Stranger Studios (http://www.strangerstudios.com/).
+# Converted to Perl by Andrew, 2006.
 
-	$dbh = DBI->connect("DBI:Oracle:",$user,$passwd) or die "connect failed: $DBI::errstr\n";
-	$dbh->{'LongReadLen'}=2**20;
-	$sth = $dbh->prepare("select image from blog_images where id=$id") or die "Can't prepare: $DBI::errstr\n";
-	$sth->execute() or die "execute failed: $DBI::errstr\n";
-	($data) = $sth->fetchrow_array();
-	$sth->finish();
-	$dbh->disconnect();
-	return $data;
+sub getPagination {
+	my (#$adjacents, # How many adjacent pages should be shown on each side?
+		$limit, # Number of items you will show per page.
+		$page, # The current starting page.
+		$total_items, # The total number of items you are paginating.
+		#$scriptName, # The name of the CGI script in <a href="$scriptName?page=...">.
+		#$extra # A string with any extra CGI params to include, of the form "&parm1=value1&parm2=value2&...".
+		$flag
+		) = @_;
+	
+	$page = 1 if ($page == 0);		# if no page var is given, default to 1.
+	my $prev = $page - 1;							# previous page is page - 1
+	my $next = $page + 1;							# next page is page + 1
+	my $lastpage = ceil($total_items/$limit);		# lastpage is = total pages / items per page, rounded up.
+	#my $lpm1 = $lastpage - 1;						# last page minus 1
+			
+	# Now we apply our rules and draw the pagination object. 
+	# We're actually saving the HTML to a variable in case we want to draw it more than once.
+	my $pagination = "<center><h3>";
+	my $counter = 0;
+	if ($lastpage > 1) {
+		$pagination .= "<h2><div class=\"pagination\">";
+		
+		#first page
+		$pagination .= "<a href=\"blog.pl?act=query&page=1&flag=$flag\">first</a>\     ";
+		# previous button
+		if ($page > 1) {
+			$pagination .= "<a href=\"blog.pl?act=query&page=$prev&flag=$flag\">|\ « previous\     </a>";
+			#$pagination .= "\&nsbp\;\&nsbp\;\&nsbp\;";
+			
+		}
+		else{
+		        #print "came here\n";
+			$pagination .= "<span class=\"pagination_disabled\">|\ previous</span>";
+		}
+		$pagination .= "\     ";
+		if($page < $lastpage){
+		  $pagination .= "<a href=\"blog.pl?act=query&page=$next&flag=$flag\">|\ next »</a>\     ";
+		}
+		
+		else{
+			$pagination .= "<span class=\"pagination_disabled\"> |\ next</span>";
+		}
+		#first page
+		$pagination .= "<a href=\"blog.pl?act=query&page=$lastpage&flag=$flag\">|\ last</a>\     ";
+	  
+		$pagination .= "</div><h3></center>";
+	}
+	#print $pagination . "--------\n";
+	return $pagination;
 }
-
-#
-# @list=BlobInsert($user, $password, $respid, $author, $subject, $text, $filename);
-# combines with: Post($respid, $author, $subject, $text)
-# Executes a SQL statement for Blobs.  If $type is "ROW", returns first row in list
-# if $type is "COL" returns first column.  Otherwise, returns
-# the whole result table as a list of references to row lists.
-# @fill are the fillers for positional parameters in $querystring
-#
-# BlobInsert executes "die" on failure.
-#
-sub BlobInsert {
-	my ($user, $passwd, $id,$filename) = @_;
-	my ($dbh, $sth, $size, $buf, $n);
-	$size = (stat ($filename))[7];
-	open (BLOB,$filename);
-	$n = read(BLOB, $buf, $size);
-	print "Number of characters read: $n";
-	close(BLOB);
-	$dbh = DBI->connect("DBI:Oracle:",$user,$passwd) or die "connect failed: $DBI::errstr\n";
-	$dbh->{'LongReadLen'}=2**20;
-#	$sth = $dbh->prepare("insert into blog_messages (id,respid,author,subject,time,text) select blog_message_id.nextval, $respid, '$author', '$subject', $time, '$text' from dual"); 
-#	$sth->execute() or die "post failed: $DBI::errstr\n";
-	$sth = $dbh->prepare("insert into blog_images values ($id,:temp)") or die "prepare failed: $DBI::errstr\n";
-	$sth->bind_param(":temp",$buf, {ora_type=>24} ) or die "Can't bind: $DBI::errstr\n";
-	$sth->execute() or die "execute failed: $DBI::errstr\n";
-#	$sth->finish();
-
-	my @data;
-#  if (defined $type and $type eq "ROW") { 
-#    @data=$sth->fetchrow_array();
-#    $sth->finish();
-#    if ($show_sqloutput) {push @sqloutput, MakeTable("ROW",undef,@data);}
-#    $dbh->disconnect();
-#    return @data;
-#  }
-  my @ret;
-  while (@data=$sth->fetchrow_array()) {
-    push @ret, [@data];
-  }
-#  if (defined $type and $type eq "COL") { 
-#    @data = map {$_->[0]} @ret;
-#    $sth->finish();
-#    if ($show_sqloutput) {push @sqloutput, MakeTable("COL",undef,@data);}
-#    $dbh->disconnect();
-#    return @data;
-#  }
-  $sth->finish();
-  if ($show_sqloutput) {push @sqloutput, MakeTable("2D",undef,@ret);}
-  $dbh->disconnect();
-  return @ret;
-
-# $dbh->disconnect();
-}
+	
