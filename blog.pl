@@ -47,6 +47,8 @@ use DBI;
 #
 use Time::ParseDate;
 
+use URI::Escape;
+
 
 #
 # The following is necessary so that DBD::Oracle can
@@ -90,6 +92,8 @@ my $user = undef;
 my $password = undef;
 my $loginok=0;
 my $logincomplain=0;
+
+
 #
 #
 # Get action user wants to perform
@@ -295,7 +299,7 @@ if ($action eq "query") {
       # the messages.
       #
       my ($mq,$count, $error) = MessageQuery($from,$to,$by,$subj,$content, $page, $msgPerPage);
-      print "count=".$count;
+#      print "count=".$count;
       my $p = getPagination($msgPerPage, $page, $count, $flag);
       print $p;
       if ($error ) { 
@@ -1055,32 +1059,32 @@ sub MessageQuery {
 			      if($subj ne ""){
 				  if($content ne ""){
 				    ##author from to title content
-				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(author,?,'i') and regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$timefrom,$timeto,$by,$subj,$content);};
+				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(author,?,'i') and regexp_like(subject,?, 'i') and regexp_like(text,?,'i') order by time DESC",undef,$timefrom,$timeto,$by,$subj,$content);};
 				  }
 				  else{
 				    ##author from to title
-				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(author,?,'i') and regexp_like(subject,?,'i')",undef,$timefrom,$timeto,$by,$subj);};
+				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(author,?,'i') and regexp_like(subject,?,'i') order by time DESC",undef,$timefrom,$timeto,$by,$subj);};
 				  }
 			      }#end of subj
 			      else{
 				##author from to
-				eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(author,?,'i')",undef,$timefrom,$timeto,$by);};
+				eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(author,?,'i') order by time DESC",undef,$timefrom,$timeto,$by);};
 			      }
 			}#end of $to
 			else {
 			    if($subj ne ""){
 			        if($content ne ""){
 			      	  ##author from title content
-				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time >=? and regexp_like(author,?,'i') and regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$timefrom,$by,$subj,$content);};
+				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time >=? and regexp_like(author,?,'i') and regexp_like(subject,?, 'i') and regexp_like(text,?,'i') order by time DESC",undef,$timefrom,$by,$subj,$content);};
 				}
 				else{
 				  #author from title 
-				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time >=? and regexp_like(author,?,'i') and regexp_like(subject,?,'i')",undef,$timefrom,$by,$subj);};
+				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time >=? and regexp_like(author,?,'i') and regexp_like(subject,?,'i') order by time DESC",undef,$timefrom,$by,$subj);};
 			       }
 			    }#end of subj
 			    else{
 			      ##author from
-			       eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time >=? and regexp_like(author,?,'i')",undef,$timefrom,$by);};
+			       eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time >=? and regexp_like(author,?,'i') order by time DESC",undef,$timefrom,$by);};
 			    }
 			}
 		}#end $from
@@ -1089,33 +1093,33 @@ sub MessageQuery {
 			if($subj ne ""){
 				if($content ne ""){
 				    #author to title content
-				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? and regexp_like(author,?,'i') and regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$timeto,$by,$subj,$content);};
+				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? and regexp_like(author,?,'i') and regexp_like(subject,?, 'i') and regexp_like(text,?,'i') order by time DESC",undef,$timeto,$by,$subj,$content);};
 				}
 				else{
 				  #author to title
-				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? and regexp_like(author,?,'i') and regexp_like(subject,?,'i')",undef,$timeto,$by,$subj);};
+				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? and regexp_like(author,?,'i') and regexp_like(subject,?,'i') order by time DESC",undef,$timeto,$by,$subj);};
 				}
 			}#end of subj	
 			else{
 			  ##author to
-			  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? and regexp_like(author,?,'i')",undef,$timeto,$by);};
+			  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? and regexp_like(author,?,'i') order by time DESC",undef,$timeto,$by);};
 			  
 			}
 		}#end $to
 		elsif ($subj ne ""){
 			if($content ne ""){
 			  #author title content
-			  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(author,?,'i') and regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$by,$subj,$content);};
+			  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(author,?,'i') and regexp_like(subject,?, 'i') and regexp_like(text,?,'i') order by time DESC",undef,$by,$subj,$content);};
 			}
 			else{
 			  #author title 
-			  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(author,?,'i') and regexp_like(subject,?,'i')",undef,$by,$subj);};
+			  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(author,?,'i') and regexp_like(subject,?,'i') order by time DESC",undef,$by,$subj);};
 			}
 			      
 		}
 		else {
 		  #author
-		  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(author,?,'i')",undef,$by);};
+		  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(author,?,'i') order by time DESC",undef,$by);};
 		}
 	}#end $by
 	elsif ($from ne "") {
@@ -1123,32 +1127,32 @@ sub MessageQuery {
 			      if($subj ne ""){
 				  if($content ne ""){
 				    ##from to title content
-				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$timefrom,$timeto,$subj,$content);};
+				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(subject,?, 'i') and regexp_like(text,?,'i') order by time DESC",undef,$timefrom,$timeto,$subj,$content);};
 				  }
 				  else{
 				    ##from to title
-				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(subject,?,'i')",undef,$timefrom,$timeto,$subj);};
+				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? and regexp_like(subject,?,'i') order by time DESC",undef,$timefrom,$timeto,$subj);};
 				  }
 			      }#end of subj
 			      else{
 				##from to
-				eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ?",undef,$timefrom,$timeto);};
+				eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time between ? and ? order by time DESC",undef,$timefrom,$timeto);};
 			      }
 			}#end of $to
 		      else {
 			    if($subj ne ""){
 			        if($content ne ""){
 			      	  ##from title content
-				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time >=? and regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$timefrom,$subj,$content);};
+				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time >=? and regexp_like(subject,?, 'i') and regexp_like(text,?,'i') order by time DESC",undef,$timefrom,$subj,$content);};
 				}
 				else{
 				  #from title 
-				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time >=? and regexp_like(subject,?,'i')",undef,$timefrom,$subj);};
+				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time >=? and regexp_like(subject,?,'i') order by time DESC",undef,$timefrom,$subj);};
 			       }
 			    }#end of subj
 			    else{
 			       ##from
-			       eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time>=?",undef,$timefrom);};
+			       eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time>=? order by time DESC",undef,$timefrom);};
 			    }
 		      }
 
@@ -1157,38 +1161,38 @@ sub MessageQuery {
 			if($subj ne ""){
 				if($content ne ""){
 				    #to title content
-				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? and regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$timeto,$subj,$content);};
+				    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? and regexp_like(subject,?, 'i') and regexp_like(text,?,'i') order by time DESC",undef,$timeto,$subj,$content);};
 				}
 				else{
 				  #to title
-				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? and regexp_like(subject,?,'i')",undef,$timeto,$subj);};
+				  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? and regexp_like(subject,?,'i') order by time DESC",undef,$timeto,$subj);};
 				}
 			}#end of subj	
 			else{
 			  ##to
-			  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=?",undef,$timeto);};
+			  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where time <=? order by time DESC",undef,$timeto);};
 			  
 			}
 	}#end $to
 	elsif($subj ne ""){
 			if($content ne ""){
 			    ##title content
-			    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(subject,?, 'i') and regexp_like(text,?,'i')",undef,$subj,$content);};
+			    eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(subject,?, 'i') and regexp_like(text,?,'i') order by time DESC",undef,$subj,$content);};
 		         }
 			else{
 			  ##title
-			  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(subject,?, 'i')",undef,$subj);};
+			  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(subject,?, 'i') order by time DESC",undef,$subj);};
 			}
 	    
 	  
 	}#end $subj
 	elsif($content ne ""){
 	  ##content
-	  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(text,?, 'i')",undef,$content);};
+	  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where regexp_like(text,?, 'i') order by time DESC",undef,$content);};
 	}#end $content
 	else {
 	  ##nothing specified
-	  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where id<>0 order by time");};
+	  eval {@msgs=ExecSQL($dbuser,$dbpasswd,"select id, respid, author, subject, time, text from blog_messages where id<>0 order by time DESC");};
 	}#end nothing specified
 
 # Original line: ignores criteria to show all messages
@@ -1200,17 +1204,17 @@ sub MessageQuery {
   } else {
     my $msg;
     my $out="";
-    $out.="<h3>Messages from $timefrom to $timeto by '$by'<h3>";
+    $out.="<h3>Messages from $from to $to by '$by'<h3>";
     if ($#msgs<0) { 
       $out.="There are no messages";
     }
     
     my $i;
     my $end = $page * $msgPerPage;
-    print "end:".$end."<p>";
+  #  print "end:".$end."<p>";
    
     my $start = $end - $msgPerPage + 1;
-     print "start:".$start."<p> ";
+   #  print "start:".$start."<p> ";
     my $count = scalar @msgs;
     if($end > $count){
       $end = $count;
@@ -1218,7 +1222,7 @@ sub MessageQuery {
     #print "msgs: ".$msgs." ";
     for($i = $start - 1; $i < $end; $i++){
     #foreach $msg (@msgs) {
-      print "i:".$i."<p>";
+    #  print "i:".$i."<p>";
 
       my ($id, $respid, $author, $subject, $time, $text) = @{$msgs[$i]};
       $out.="<table border><tr><td><b>id:</b></td><td>$id</td><td><b>respid:</b></td><td>$respid</td><td><b>Time:</b></td><td>".localtime($time)."</td></tr>";
@@ -1428,6 +1432,7 @@ sub getPagination {
 		$pagination .= "</div><h3></center>";
 	}
 	#print $pagination . "--------\n";
+	$pagination .= "</center>";
 	return $pagination;
 }
 
