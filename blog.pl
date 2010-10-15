@@ -77,21 +77,25 @@ my $dbpasswd="ob5e18c77";
 # AND CONSIDER SUPPORTING ONLY HTTPS
 #
 my $cookiename="MicroblogSession";
+my $imagecookie="Images Downloaded";
 
 #
 # Get the session input cookie, if any
 #
 my $inputcookiecontent = cookie($cookiename);
+my $imagecookiecontent = cookie($imagecookie);
 
 #
 # Will be filled in as we process the cookies and paramters
 #
 my $outputcookiecontent = undef;
+my $outputimagecookiecontent = undef;
 my $deletecookie=0;
 my $user = undef;
 my $password = undef;
 my $loginok=0;
 my $logincomplain=0;
+
 #
 #
 # Get action user wants to perform
@@ -187,6 +191,16 @@ if ($outputcookiecontent) {
 } else {
   print header(-expires=>'now');
 }
+
+if ($outputimagecookiecontent) {
+	my $cookie=cookie(-name=>$imagecookie,
+		-value=>$outputimagecookiecontent,
+		-expires=>($deletecookie ? '-1h' : '+1h'));
+	print header(-expires=>'now', -cookie=>$cookie);
+} else {
+	print header(-expires=>'now');
+}
+
 
 #
 # Now we finally begin spitting back HTML
@@ -510,6 +524,9 @@ if ($action eq "image") {
 	my $imgdata = BlobExtract($dbuser,$dbpasswd,$id);
 #	print $imgdata;
 	my $filename = $id.".jpg";
+
+	my $outputimagecookie = $filename;
+
 #	print $filename;
 	open(LOCAL,">$filename");
 	binmode(LOCAL);
