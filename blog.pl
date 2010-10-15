@@ -59,10 +59,10 @@ $ENV{ORACLE_SID}="CS339";
 #
 # You need to override these for access to your database
 #
-#my $dbuser="jhb348";
-#my $dbpasswd="ob5e18c77";
-my $dbuser="drp925";
-my $dbpasswd="o3d7f737e";
+my $dbuser="jhb348";
+my $dbpasswd="ob5e18c77";
+#my $dbuser="drp925";
+#my $dbpasswd="o3d7f737e";
 
 #
 # The session cookie will contain the user's name and password so that 
@@ -294,7 +294,6 @@ if ($action eq "query") {
       # to actually use the parameters.  Right now it just returns all
       # the messages.
       #
-      my $count = 0;
       my ($mq,$count, $error) = MessageQuery($from,$to,$by,$subj,$content, $page, $msgPerPage);
       print "count=".$count;
       my $p = getPagination($msgPerPage, $page, $count, $flag);
@@ -355,7 +354,7 @@ if ($action eq "write") {
     # Generate the form.
     # Your reply functionality will be similar to this
     #
-    print start_form(-name=>'Write'),
+    print start_multipart_form(-name=>'Write'),
       h2('Make blog entry'),
 	"Subject:", textfield(-name=>'subject'),
 	  p,
@@ -365,6 +364,10 @@ if ($action eq "write") {
 		   -columns=>80),
           hidden(-name=>'postrun',-default=>['1']),
 	  hidden(-name=>'act',-default=>['write']), p
+		filefield(-name=>'img',
+			-default=>'startingvalue',
+			-size=>50,
+			-maxlength=>80),p
 	  submit,
 	  end_form,
 	  hr;
@@ -377,15 +380,44 @@ if ($action eq "write") {
       my $by=$user;
       my $text=param('post');
       my $subject=param('subject');
-      my $error=Post(0,$by,$subject,$text);
-      if ($error) { 
-	print "Can't post message because: $error";
-      } else {
-	print "Posted the following on $subject from $by:<p>$text";
+			my $file=param('img');
+
+			if (defined ($file) && $file ne "") {
+				
+				open(LOCAL, ">$file") or die $!;
+				while(<$file>) {
+					print LOCAL $_;
+				}
+				close(LOCAL);
+				
+				my $error=Post(0,$by,$subject,$text);
+	    	if ($error) { 
+					print "Can't post message because: $error";
+		    } else {
+					print "Posted the following on the $subject from $by:<p>$text<p>";
+				}
+				my $id = GetId($by,$subject,$text);
+				print $id."<p>";
+				my $bloberror=BlobInsert($dbuser, $dbpasswd, $id, $file);
+				if ($bloberror) {
+					print "Can't post message with upload image because: $bloberror";
+				} else {
+					print "Successfully posted and uploaded the image.";
+				}
+				unlink($file);
+			}
+			else {
+				my $error=Post(0,$by,$subject,$text);
+	      if ($error) { 
+					print "Can't post message because: $error";
+	      } else {
+					print "Posted the following on $subject from $by:<p>$text<p>";
+				}
       }
     }
   }
 }
+
 
 
 #	DELETE
@@ -436,7 +468,12 @@ if ($action eq "reply") {
           hidden(-name=>'postrun',-default=>['1']),
 					hidden(-name=>'respid',-default=>[$respid]),
 	  hidden(-name=>'act',-default=>['reply']), p
-	  submit,
+		filefield(-name=>'img',
+			-default=>'startingvalue',
+			-size=>50,
+			-maxlength=>80),p
+
+submit,
 	  end_form,
 	  hr;
 
@@ -449,6 +486,36 @@ if ($action eq "reply") {
       my $text=param('reply');
       my $subject=param('subject');
 			my $respid=param('respid');
+
+
+			my $file=param('img');
+
+			if (defined ($file) && $file ne "") {
+				
+				open(LOCAL, ">$file") or die $!;
+				while(<$file>) {
+					print LOCAL $_;
+				}
+				close(LOCAL);
+				
+				my $error=Post($respid,$by,$subject,$text);
+	    	if ($error) { 
+					print "Can't post message because: $error";
+		    } else {
+					print "Posted the following on the $subject from $by:<p>$text<p>";
+				}
+				my $id = GetId($by,$subject,$text);
+				print $id."<p>";
+				my $bloberror=BlobInsert($dbuser, $dbpasswd, $id, $file);
+				if ($bloberror) {
+					print "Can't post message with upload image because: $bloberror";
+				} else {
+					print "Successfully posted and uploaded the image.";
+				}
+				unlink($file);
+			}
+			else {
+
 			# print "Response id: $respid";
       my $error=Post($respid,$by,$subject,$text);
       if ($error) { 
@@ -456,6 +523,7 @@ if ($action eq "reply") {
       } else {
 	print "Posted the following on $subject in response to message $respid from $by:<p>$text";
       }
+			}
     }
 	}
 	else {
@@ -464,6 +532,27 @@ if ($action eq "reply") {
 }
 
 
+
+#
+# IMAGE
+#
+# Displaying an image from the database
+#
+if ($action eq "image") {
+# is a check necessary for permissions?
+# just display the image
+# assume the id param passed has already went through the check for having an image
+	my $id = param('id');
+	my $imgdata = BlobExtract($dbuser,$dbpasswd,$id);
+#	print $imgdata;
+	my $filename = $id.".jpg";
+#	print $filename;
+	open(LOCAL,">$filename");
+	binmode(LOCAL);
+	print LOCAL $imgdata;
+	close(LOCAL);
+	print "<img src=\"$filename\">";
+}
 
 
 
@@ -801,6 +890,21 @@ sub HasRef {
 	}
 }
 
+
+sub HasImg {
+	my($id) = @_;
+	my @col;
+	eval {@col=ExecSQL($dbuser,$dbpasswd,"select count(*) from blog_images where id=?","COL",$id);};
+	if ($@) {
+		return 0;
+	} else {
+		return $col[0]>0;
+	}
+}
+
+
+
+
 sub totalRows{
   my @rows;
   my $size;
@@ -826,6 +930,28 @@ sub MsgOwner {
 	}
 }
 
+
+sub GetId {
+	my ($by, $subject, $text) = @_;
+	my @col;
+	eval{@col=ExecSQL($dbuser, $dbpasswd, "select id from blog_messages where author=? and subject=? and text=?","COL",$by, $subject, $text);};
+	if($@) {
+		return 0;
+	} else {
+		return $col[0];
+	}
+}
+
+sub GetImg {
+	my ($id) = @_;
+	my @col;
+	eval{@col=ExecSQL($dbuser, $dbpasswd, "select image from blog_images where id=?", "COL",$id);};
+	if ($@) {
+		return 0;
+	} else {
+		return $col[0];
+	}
+}
 
 #
 # Post a message
@@ -1099,6 +1225,9 @@ sub MessageQuery {
       $out.="<tr><td><b>author:</b></td><td colspan=5>$author</td></tr>";
       $out.="<tr><td><b>subject:</b></td><td colspan=5>$subject</td></tr>";
       $out.="<tr><td colspan=6>$text</td></tr>";
+			if(HasImg($id)) {
+				$out.="<tr><td colspan=6><a href=\"blog.pl?act=image&id=$id\">Attached Image</a></td></tr>";
+			}
 			$out.="<tr><td colspan=3><a href=blog.pl?act=delete&deleterun=1&id=$id>delete</a></td><td colspan=3><a href=blog.pl?act=reply&respid=$id>reply</a></td></tr>";
       $out.="</table>";
     }
@@ -1301,4 +1430,73 @@ sub getPagination {
 	#print $pagination . "--------\n";
 	return $pagination;
 }
-	
+
+
+
+sub BlobExtract {
+	my ($user, $passwd, $id) = @_;
+	my ($dbh, $sth, $data);
+
+	$dbh = DBI->connect("DBI:Oracle:",$user,$passwd) or die "connect failed: $DBI::errstr\n";
+	$dbh->{'LongReadLen'}=2**20;
+	$sth = $dbh->prepare("select image from blog_images where id=$id") or die "Can't prepare: $DBI::errstr\n";
+	$sth->execute() or die "execute failed: $DBI::errstr\n";
+	($data) = $sth->fetchrow_array();
+	$sth->finish();
+	$dbh->disconnect();
+	return $data;
+}
+
+#
+# @list=BlobInsert($user, $password, $respid, $author, $subject, $text, $filename);
+# combines with: Post($respid, $author, $subject, $text)
+# Executes a SQL statement for Blobs.  If $type is "ROW", returns first row in list
+# if $type is "COL" returns first column.  Otherwise, returns
+# the whole result table as a list of references to row lists.
+# @fill are the fillers for positional parameters in $querystring
+#
+# BlobInsert executes "die" on failure.
+#
+sub BlobInsert {
+	my ($user, $passwd, $id,$filename) = @_;
+	my ($dbh, $sth, $size, $buf, $n);
+	$size = (stat ($filename))[7];
+	open (BLOB,$filename);
+	$n = read(BLOB, $buf, $size);
+	print "Number of characters read: $n";
+	close(BLOB);
+	$dbh = DBI->connect("DBI:Oracle:",$user,$passwd) or die "connect failed: $DBI::errstr\n";
+	$dbh->{'LongReadLen'}=2**20;
+#	$sth = $dbh->prepare("insert into blog_messages (id,respid,author,subject,time,text) select blog_message_id.nextval, $respid, '$author', '$subject', $time, '$text' from dual"); 
+#	$sth->execute() or die "post failed: $DBI::errstr\n";
+	$sth = $dbh->prepare("insert into blog_images values ($id,:temp)") or die "prepare failed: $DBI::errstr\n";
+	$sth->bind_param(":temp",$buf, {ora_type=>24} ) or die "Can't bind: $DBI::errstr\n";
+	$sth->execute() or die "execute failed: $DBI::errstr\n";
+#	$sth->finish();
+
+	my @data;
+#  if (defined $type and $type eq "ROW") { 
+#    @data=$sth->fetchrow_array();
+#    $sth->finish();
+#    if ($show_sqloutput) {push @sqloutput, MakeTable("ROW",undef,@data);}
+#    $dbh->disconnect();
+#    return @data;
+#  }
+  my @ret;
+  while (@data=$sth->fetchrow_array()) {
+    push @ret, [@data];
+  }
+#  if (defined $type and $type eq "COL") { 
+#    @data = map {$_->[0]} @ret;
+#    $sth->finish();
+#    if ($show_sqloutput) {push @sqloutput, MakeTable("COL",undef,@data);}
+#    $dbh->disconnect();
+#    return @data;
+#  }
+  $sth->finish();
+  if ($show_sqloutput) {push @sqloutput, MakeTable("2D",undef,@ret);}
+  $dbh->disconnect();
+  return @ret;
+
+# $dbh->disconnect();
+}
