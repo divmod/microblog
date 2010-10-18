@@ -24,7 +24,7 @@ create table blog_users (
 -- in the database
 --
   password VARCHAR(64) NOT NULL,
-    constraint long_passwd CHECK (password LIKE '________%'),
+--    constraint long_passwd CHECK (password LIKE '________%'),
 --
 -- Each user must have an email address and it must be unique
 -- the constraint checks to see that there is an "@" in the name
@@ -137,9 +137,9 @@ INSERT INTO blog_actions VALUES ('write-messages');
 --
 -- Create the required users
 --
-INSERT INTO blog_users (name,password,email) VALUES ('none','nonenone','none@none.com');
-INSERT INTO blog_users (name,password,email) VALUES ('root','rootroot','root@root.com');
-
+INSERT INTO blog_users (name,password,email) VALUES ('none','c2a0def81c56bd669d9bc6d9a247c6e3','none@none.com');
+INSERT INTO blog_users (name,password,email) VALUES ('root','b4b8daf4b8ea9d39568719e1e320076f','root@root.com');
+insert into blog_users (name,password,email) values ('guest', 'fcf41657f02f88137a1bcf068a32c0a3', 'guest@339.cs.northwestern.edu');
 --
 -- And what they can do  (root can do everything, none can do nothing)
 --
@@ -154,6 +154,6 @@ INSERT INTO blog_permissions (name,action) VALUES('root','write-messages');
 -- Create the very first message (0)
 --
 INSERT INTO blog_messages (id, respid, author, subject, time, text) VALUES (0,0,'none','none',0,'dummy');
-B
+
 
 quit;

@@ -1,5 +1,11 @@
 #!/usr/bin/perl -w
+
+#
+# Additional modules
+#
 use POSIX;
+use Digest::MD5 qw(md5_hex);
+
 #
 # Some debugging options
 # all of this debugging info will be shown at the *end* of script
@@ -7,10 +13,10 @@ use POSIX;
 #
 # database input and output is paired into the two arrays noted
 #
-my $show_params=1;
-my $show_cookies=1;
-my $show_sqlinput=1;
-my $show_sqloutput=1;
+my $show_params=0;
+my $show_cookies=0;
+my $show_sqlinput=0;
+my $show_sqloutput=0;
 my @sqlinput=();
 my @sqloutput=();
 
@@ -118,6 +124,7 @@ if ($action eq "login" || param('loginrun')) {
     # generate the right output cookie, if any.
     #
     ($user,$password)=(param('user'),param('password'));
+		$password = md5_hex($password);
     if (ValidUser($user,$password)) { 
       # if the user's info is OK, then give him a cookie
       # that contains his username and password 
@@ -199,6 +206,7 @@ print start_html('Microblog');
 #
 # This tells the web browser to render the page in the style
 # defined in the blog.css file
+use POSIX;
 #
 
 print "<style type=\"text/css\">\n\@import \"blog.css\";\n</style>\n";
@@ -236,7 +244,9 @@ if ($action eq "login") {
 	  "Password:",password_field(-name=>'password'),p,
 	    hidden(-name=>'act',default=>['login']),
 	      hidden(-name=>'loginrun',default=>['1']),
-		submit,
+			hidden(-name=>'page',default=>['1']),
+			hidden(-name=>'flag',default=>['0']),
+submit,
 		  end_form;
   }
 }
@@ -401,7 +411,7 @@ if ($action eq "write") {
 					print "Posted the following on the $subject from $by:<p>$text<p>";
 				}
 				my $id = GetId($by,$subject,$text);
-				print $id."<p>";
+#				print $id."<p>";
 				my $bloberror=BlobInsert($dbuser, $dbpasswd, $id, $file);
 				if ($bloberror) {
 					print "Can't post message with upload image because: $bloberror";
@@ -636,7 +646,7 @@ if ($action eq "users") {
     if (param('adduserrun')) { 
       my $name=param('name');
       my $email=param('email');
-      my $password=param('password');
+      my $password=md5_hex(param('password'));
       my $error;
       $error=UserAdd($name,$password,$email);
       if ($error) { 
@@ -1468,7 +1478,7 @@ sub BlobInsert {
 	$size = (stat ($filename))[7];
 	open (BLOB,$filename);
 	$n = read(BLOB, $buf, $size);
-	print "Number of characters read: $n";
+#	print "Number of characters read: $n";
 	close(BLOB);
 	$dbh = DBI->connect("DBI:Oracle:",$user,$passwd) or die "connect failed: $DBI::errstr\n";
 	$dbh->{'LongReadLen'}=2**20;
